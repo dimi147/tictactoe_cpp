@@ -3,6 +3,10 @@
 #include <array>
 #include <utility>
 #include <string>
+#include <chrono>
+
+// Uncomment to print timings of the bot's lookup
+//#define TIMECODE
 
 using namespace std::string_literals;
 
@@ -134,19 +138,25 @@ public:
     }
 
     auto getTargetLocation(const Game& game) -> std::pair<int, int>  override {
+#ifdef TIMECODE
+        auto start = std::chrono::steady_clock::now();
+#endif
         const auto& board = game.getBoard();
         auto possibleMoves = getPossibleMoves(board);
 
-        // first bot move
-        if (possibleMoves.size() == 9) {
-            srand(time(0));
-            auto botMarkedCenter = (bool)std::round(static_cast<float>(rand()) / RAND_MAX);
-            return (botMarkedCenter ? std::pair<int, int>{1, 1} : std::pair<int, int>{0, 0});
-        } else if (possibleMoves.size() == 8) {
-            return ((board[1][1] != Game::EMPTY_CHARACTER) ? std::pair<int, int>{0, 0} : std::pair<int, int>{1, 1});
-        }
+        // Optional optimization to preselect the first move of the bot as it's the most expensive to calculate
+        // if (possibleMoves.size() == 9)
+        //     return {0, 0};
+        // else if (possibleMoves.size() == 8)
+        //     return ((board[1][1] != Game::EMPTY_CHARACTER) ? std::pair<int, int>{0, 0} : std::pair<int, int>{1, 1});
 
         auto result = minimax(board, true);
+#ifdef TIMECODE        
+        auto end = std::chrono::steady_clock::now();
+        std::cout << "Bot looked for " 
+                    << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() 
+                    << " milliseconds\n";
+#endif
         return {result[1], result[2]};
     }
 
@@ -209,20 +219,20 @@ private:
 
 };
 
-void playAgainstBot() {
+void playAgainstBot(bool humanPlaysFirst = true) {
 
     try {
         Game game;
         Player human(game);
         Bot bot(game); 
 
-        Player* currentPlayer = &human;
-        Player* otherPlayer = &bot;
+        Player* currentPlayer = (humanPlaysFirst ? &human : &bot);
+        Player* otherPlayer = (humanPlaysFirst ? &bot : &human);
 
         while(!game.isOver()) {
             auto location = currentPlayer->getTargetLocation(game);            
             game.advance(currentPlayer->getSymbol(), location);
-            //std::swap(currentPlayer, otherPlayer);
+            std::swap(currentPlayer, otherPlayer);
         }
 
         game.printBoard();
@@ -267,7 +277,7 @@ void battleOfTheBots(int iterations = 1000) {
 }
 
 int main() {
-    playAgainstBot();
+    playAgainstBot(false);
     //battleOfTheBots(100);
     return 0;
 }
