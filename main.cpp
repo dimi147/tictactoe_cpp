@@ -2,6 +2,9 @@
 #include <vector>
 #include <array>
 #include <utility>
+#include <string>
+
+using namespace std::string_literals;
 
 class Game {
 public:
@@ -49,12 +52,14 @@ public:
         return {false, ' '};                        
     }
 
-    auto move(char symbol, int r, int c) -> void {
-        if (r > 2 || c > 2)
-            throw "coordinates out of bounds";
-        if (board[r][c] != EMPTY_CHARACTER)
-            throw "element already marked";
-        board[r][c] = symbol;
+    auto advance(const std::pair<int, int>& location) -> void {
+        const auto& [row, col] = location;
+        if (row < 0 || row > 2 || col < 0 || col > 2)
+            throw "Location is out of bounds"s;
+        if (board[row][col] != EMPTY_CHARACTER)
+            throw "Location already marked"s;
+        board[row][col] = (*current.first);
+        std::swap(current.first, current.second);
     }
 
     auto getBoard() const -> const std::array<std::array<char, 3>, 3>& { return board; } 
@@ -73,6 +78,7 @@ public:
 
 private:
     std::array<std::array<char, 3>, 3> board;
+    std::pair<const char*, const char*> current{&SYMBOLS[0], &SYMBOLS[1]};
 
     auto boardIsComplete() const -> bool {
         for (auto row = 0; row < 3; row++) {
@@ -89,24 +95,29 @@ class Player {
 public:
     Player() {
         if (count == 2)
-            throw "too many players";
-        symbol = Game::SYMBOLS[count];
+            throw "Too many players"s;
+        symbol = &Game::SYMBOLS[count];
         count++;   
     } 
+
+    ~Player() {
+        count--;
+    }
 
     virtual auto getTargetLocation(const Game& game) -> std::pair<int, int> {
         game.printBoard();
         auto targetRow = -1;
         auto targetCol = -1;
+        std::cout << "input location: ";
         std::cin >> targetRow >> targetCol;
         return {targetRow, targetCol};  
     } 
 
-    auto getSymbol() const -> char { return symbol;  }
+    auto getSymbol() const -> char { return (*symbol);  }
 
 private:
     static int count; 
-    char symbol; 
+    const char* symbol; 
 };
 
 class Bot : public Player {
@@ -188,7 +199,7 @@ private:
 
 int Player::count = 0;
 
-int main() {
+void playAgainstBot() {
 
     Game game;
     Player human;
@@ -198,8 +209,13 @@ int main() {
     Player* otherPlayer = &bot;
 
     while(!game.isOver()) {
-        auto [r, c] = currentPlayer->getTargetLocation(game);            
-        game.move(currentPlayer->getSymbol(), r, c);
+        auto location = currentPlayer->getTargetLocation(game);            
+        try {
+            game.advance(location);
+        } catch(std::string& e) {
+            std::cout << e << std::endl;
+            return;
+        }
         std::swap(currentPlayer, otherPlayer);
     }
 
@@ -209,6 +225,40 @@ int main() {
         std::cout << winner << " wins!" << std::endl;
     else 
         std::cout << "Tie!" << std::endl;
+    
+}
+
+void battleOfTheBots(int iterations = 1000) {
+    
+    for (auto i = 0; i < iterations; ++i) {
+
+        Game game;
+        Bot bot1;
+        Bot bot2; 
+
+        Player* currentPlayer = &bot1;
+        Player* otherPlayer = &bot2;
+
+        while(!game.isOver()) {
+            auto location = currentPlayer->getTargetLocation(game);            
+            try {
+                game.advance(location);
+            } catch(std::string& e) {
+                std::cout << e << std::endl;
+                return;
+            }
+            std::swap(currentPlayer, otherPlayer);
+        }
+
+        auto [hasWinner, winner] = game.hasWinner();
+        if (hasWinner)
+            std::cout << winner << " wins!" << std::endl;
+    }
+}
+
+int main() {
+
+    battleOfTheBots();
 
     return 0;
 }
