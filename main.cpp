@@ -58,6 +58,14 @@ public:
             throw "Location is out of bounds"s;
         if (board[row][col] != EMPTY_CHARACTER)
             throw "Location already marked"s;
+        if (symbol == *previousSymbol)
+            throw "Wrong player turn"s;
+        if (symbol == SYMBOLS[0])
+            previousSymbol = &SYMBOLS[0];
+        else if(symbol == SYMBOLS[1])
+            previousSymbol = &SYMBOLS[1];
+        else 
+            throw "Unexpected player symbol"s;
         board[row][col] = symbol;
     }
 
@@ -78,13 +86,13 @@ public:
     auto getSymbolForNewPlayer() -> const char* {
         if (numberOfPlayers > 1) 
             throw "Too many players in game"s;
-        numberOfPlayers++;
         return &SYMBOLS[numberOfPlayers++];
     }
 
 private:
     size_t numberOfPlayers = 0;
     std::array<std::array<char, 3>, 3> board;
+    const char* previousSymbol = &EMPTY_CHARACTER;
 
     auto boardIsComplete() const -> bool {
         for (auto row = 0; row < 3; row++) {
@@ -203,30 +211,30 @@ private:
 
 void playAgainstBot() {
 
-    Game game;
-    Player human(game);
-    Bot bot(game); 
+    try {
+        Game game;
+        Player human(game);
+        Bot bot(game); 
 
-    Player* currentPlayer = &human;
-    Player* otherPlayer = &bot;
+        Player* currentPlayer = &human;
+        Player* otherPlayer = &bot;
 
-    while(!game.isOver()) {
-        auto location = currentPlayer->getTargetLocation(game);            
-        try {
+        while(!game.isOver()) {
+            auto location = currentPlayer->getTargetLocation(game);            
             game.advance(currentPlayer->getSymbol(), location);
-        } catch(std::string& e) {
-            std::cout << e << std::endl;
-            return;
+            //std::swap(currentPlayer, otherPlayer);
         }
-        std::swap(currentPlayer, otherPlayer);
-    }
 
-    game.printBoard();
-    auto [hasWinner, winner] = game.hasWinner();
-    if (hasWinner)
-        std::cout << winner << " wins!" << std::endl;
-    else 
-        std::cout << "Tie!" << std::endl;
+        game.printBoard();
+        auto [hasWinner, winner] = game.hasWinner();
+        if (hasWinner)
+            std::cout << winner << " wins!" << std::endl;
+        else 
+            std::cout << "Tie!" << std::endl;
+    } catch(std::string& e) {
+        std::cout << e << std::endl;
+        return;
+    }
     
 }
 
@@ -259,6 +267,7 @@ void battleOfTheBots(int iterations = 1000) {
 }
 
 int main() {
-    battleOfTheBots(100);
+    playAgainstBot();
+    //battleOfTheBots(100);
     return 0;
 }
