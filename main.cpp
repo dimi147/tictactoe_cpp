@@ -25,6 +25,11 @@ public:
     } 
 
     static auto hasWinner(const std::array<std::array<char, 3>, 3>& state) -> std::pair<bool, char> {
+    
+        auto isLineCompleted = [](char a, char b, char c) -> bool {
+            return (a == b && b == c && a != EMPTY_CHARACTER);
+        };
+        
         if (isLineCompleted(state[0][0], state[0][1], state[0][2])) 
             return {true, state[0][0]};
         else if (isLineCompleted(state[1][0], state[1][1], state[1][2]))
@@ -77,10 +82,6 @@ private:
             }
         }
         return true;
-    }
-
-    static auto isLineCompleted(char a, char b, char c) -> bool {
-        return (a == b && b == c && a != EMPTY_CHARACTER);
     }
 };
 
