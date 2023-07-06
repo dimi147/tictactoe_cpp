@@ -6,7 +6,7 @@
 #include <chrono>
 
 // Uncomment to print timings of the bot's lookup
-#define TIMECODE
+//#define TIMECODE
 
 using namespace std::string_literals;
 
@@ -126,7 +126,6 @@ public:
     auto getSymbol() const -> char { return (*symbol);  }
 
 private:
-    static int count; 
     const char* const symbol; 
 };
 
@@ -241,6 +240,7 @@ void playAgainstBot(bool humanPlaysFirst = true) {
             std::cout << winner << " wins!" << std::endl;
         else 
             std::cout << "Tie!" << std::endl;
+            
     } catch(std::string& e) {
         std::cout << e << std::endl;
         return;
@@ -278,7 +278,7 @@ void battleOfTheBots(int iterations = 100) {
 }
 
 int main() {
-    //playAgainstBot(false);
-    battleOfTheBots();
+    playAgainstBot(false);
+    //battleOfTheBots();
     return 0;
 }
