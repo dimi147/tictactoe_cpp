@@ -123,7 +123,7 @@ class Bot : public Player {
 public:
     Bot(Game& game) 
         : Player(game),
-          enemySymbol{Game::SYMBOLS[0] == getSymbol() ? Game::SYMBOLS[1] : Game::SYMBOLS[0]} {
+          enemySymbol{Game::SYMBOLS[0] == getSymbol() ? &Game::SYMBOLS[1] : &Game::SYMBOLS[0]} {
     }
 
     auto getTargetLocation(const Game& game) -> std::pair<int, int>  override {
@@ -144,7 +144,11 @@ public:
     }
 
 private:
-    const char enemySymbol;
+    const char* const enemySymbol;
+
+    auto getEnemySymbol() -> const char& {
+        return (*enemySymbol);
+    }
 
     auto minimax(const std::array<std::array<char, 3>, 3>& board, bool isFriendly, int depth = 0) -> std::array<int, 3> {
         auto moves = getPossibleMoves(board);
@@ -161,7 +165,7 @@ private:
         for (auto i = 0; i < moves.size(); ++i) {
             auto futureBoard = board;
             auto& move = moves[i];
-            futureBoard[move.first][move.second] = (isFriendly ? getSymbol() : enemySymbol);
+            futureBoard[move.first][move.second] = (isFriendly ? getSymbol() : getEnemySymbol());
             auto [isGameOver, winner] = Game::hasWinner(futureBoard);
             if (isGameOver)
                 results[i] += (isFriendly ? 10 - depth : -10 + depth);
