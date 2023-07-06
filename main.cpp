@@ -6,7 +6,7 @@
 #include <chrono>
 
 // Uncomment to print timings of the bot's lookup
-//#define TIMECODE
+#define TIMECODE
 
 using namespace std::string_literals;
 
@@ -144,7 +144,7 @@ public:
         const auto& board = game.getBoard();
         auto possibleMoves = getPossibleMoves(board);
 
-        // Optional optimization to preselect the first move of the bot as it's the most expensive to calculate
+        // Optional optimization to preselect the first move of the bot as it's the simplest but most expensive to calculate
         // if (possibleMoves.size() == 9)
         //     return {0, 0};
         // else if (possibleMoves.size() == 8)
@@ -248,10 +248,10 @@ void playAgainstBot(bool humanPlaysFirst = true) {
     
 }
 
-void battleOfTheBots(int iterations = 1000) {
-    
-    for (auto i = 0; i < iterations; ++i) {
+void battleOfTheBots(int iterations = 100) {
 
+    auto ties = 0;
+    for (auto i = 0; i < iterations; ++i) {
         Game game;
         Bot bot1(game);
         Bot bot2(game); 
@@ -270,14 +270,15 @@ void battleOfTheBots(int iterations = 1000) {
             std::swap(currentPlayer, otherPlayer);
         }
 
-        auto [hasWinner, winner] = game.hasWinner();
-        if (hasWinner)
-            std::cout << winner << " wins!" << std::endl;
+        if (game.isTie())
+            ties++;
     }
+
+    std::cout << "Finished with " << ties << "/" << iterations << " ties" << std::endl;
 }
 
 int main() {
-    playAgainstBot(false);
-    //battleOfTheBots(100);
+    //playAgainstBot(false);
+    battleOfTheBots();
     return 0;
 }
