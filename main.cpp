@@ -99,9 +99,8 @@ private:
 
 class Player {
 public:
-    Player(Game& game) {
-        symbol = game.getSymbolForNewPlayer();
-    }
+    Player(Game& game) : symbol {game.getSymbolForNewPlayer()}
+    {}
 
     virtual auto getTargetLocation(const Game& game) -> std::pair<int, int> {
         game.printBoard();
@@ -116,7 +115,7 @@ public:
 
 private:
     static int count; 
-    const char* symbol; 
+    const char* const symbol; 
 };
 
 class Bot : public Player {
