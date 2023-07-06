@@ -27,39 +27,38 @@ public:
         return hasWinner(board);                       
     } 
 
-    static auto hasWinner(const std::array<std::array<char, 3>, 3>& state) -> std::pair<bool, char> {
+    static auto hasWinner(const std::array<std::array<char, 3>, 3>& board) -> std::pair<bool, char> {
     
         auto isLineCompleted = [](char a, char b, char c) -> bool {
             return (a == b && b == c && a != EMPTY_CHARACTER);
         };
         
-        if (isLineCompleted(state[0][0], state[0][1], state[0][2])) 
-            return {true, state[0][0]};
-        else if (isLineCompleted(state[1][0], state[1][1], state[1][2]))
-            return {true, state[1][0]};
-        else if (isLineCompleted(state[2][0], state[2][1], state[2][2]))
-            return {true, state[2][0]};
-        else if (isLineCompleted(state[0][0], state[1][0], state[2][0]))
-            return {true, state[0][0]};
-        else if (isLineCompleted(state[0][1], state[1][1], state[2][1]))
-            return {true, state[0][1]};
-        else if (isLineCompleted(state[0][2], state[1][2], state[2][2]))
-            return {true, state[0][2]};
-        else if (isLineCompleted(state[0][0], state[1][1], state[2][2]))
-            return {true, state[0][0]};
-        else if (isLineCompleted(state[2][0], state[1][1], state[0][2]))
-            return {true, state[2][0]};
+        if (isLineCompleted(board[0][0], board[0][1], board[0][2])) 
+            return {true, board[0][0]};
+        else if (isLineCompleted(board[1][0], board[1][1], board[1][2]))
+            return {true, board[1][0]};
+        else if (isLineCompleted(board[2][0], board[2][1], board[2][2]))
+            return {true, board[2][0]};
+        else if (isLineCompleted(board[0][0], board[1][0], board[2][0]))
+            return {true, board[0][0]};
+        else if (isLineCompleted(board[0][1], board[1][1], board[2][1]))
+            return {true, board[0][1]};
+        else if (isLineCompleted(board[0][2], board[1][2], board[2][2]))
+            return {true, board[0][2]};
+        else if (isLineCompleted(board[0][0], board[1][1], board[2][2]))
+            return {true, board[0][0]};
+        else if (isLineCompleted(board[2][0], board[1][1], board[0][2]))
+            return {true, board[2][0]};
         return {false, ' '};                        
     }
 
-    auto advance(const std::pair<int, int>& location) -> void {
+    auto advance(const char& symbol, const std::pair<int, int>& location) -> void {
         const auto& [row, col] = location;
         if (row < 0 || row > 2 || col < 0 || col > 2)
             throw "Location is out of bounds"s;
         if (board[row][col] != EMPTY_CHARACTER)
             throw "Location already marked"s;
-        board[row][col] = (*current.first);
-        std::swap(current.first, current.second);
+        board[row][col] = symbol;
     }
 
     auto getBoard() const -> const std::array<std::array<char, 3>, 3>& { return board; } 
@@ -76,9 +75,16 @@ public:
         std::cout << std::endl;        
     }
 
+    auto getSymbolForNewPlayer() -> const char* {
+        if (numberOfPlayers > 1) 
+            throw "Too many players in game"s;
+        numberOfPlayers++;
+        return &SYMBOLS[numberOfPlayers++];
+    }
+
 private:
+    size_t numberOfPlayers = 0;
     std::array<std::array<char, 3>, 3> board;
-    std::pair<const char*, const char*> current{&SYMBOLS[0], &SYMBOLS[1]};
 
     auto boardIsComplete() const -> bool {
         for (auto row = 0; row < 3; row++) {
@@ -93,15 +99,8 @@ private:
 
 class Player {
 public:
-    Player() {
-        if (count == 2)
-            throw "Too many players"s;
-        symbol = &Game::SYMBOLS[count];
-        count++;   
-    } 
-
-    ~Player() {
-        count--;
+    Player(Game& game) {
+        symbol = game.getSymbolForNewPlayer();
     }
 
     virtual auto getTargetLocation(const Game& game) -> std::pair<int, int> {
@@ -122,7 +121,9 @@ private:
 
 class Bot : public Player {
 public:
-    Bot() : enemySymbol{Game::SYMBOLS[0] == getSymbol() ? Game::SYMBOLS[1] : Game::SYMBOLS[0]} {
+    Bot(Game& game) 
+        : Player(game),
+          enemySymbol{Game::SYMBOLS[0] == getSymbol() ? Game::SYMBOLS[1] : Game::SYMBOLS[0]} {
     }
 
     auto getTargetLocation(const Game& game) -> std::pair<int, int>  override {
@@ -197,13 +198,11 @@ private:
 
 };
 
-int Player::count = 0;
-
 void playAgainstBot() {
 
     Game game;
-    Player human;
-    Bot bot; 
+    Player human(game);
+    Bot bot(game); 
 
     Player* currentPlayer = &human;
     Player* otherPlayer = &bot;
@@ -211,7 +210,7 @@ void playAgainstBot() {
     while(!game.isOver()) {
         auto location = currentPlayer->getTargetLocation(game);            
         try {
-            game.advance(location);
+            game.advance(currentPlayer->getSymbol(), location);
         } catch(std::string& e) {
             std::cout << e << std::endl;
             return;
@@ -233,8 +232,8 @@ void battleOfTheBots(int iterations = 1000) {
     for (auto i = 0; i < iterations; ++i) {
 
         Game game;
-        Bot bot1;
-        Bot bot2; 
+        Bot bot1(game);
+        Bot bot2(game); 
 
         Player* currentPlayer = &bot1;
         Player* otherPlayer = &bot2;
@@ -242,7 +241,7 @@ void battleOfTheBots(int iterations = 1000) {
         while(!game.isOver()) {
             auto location = currentPlayer->getTargetLocation(game);            
             try {
-                game.advance(location);
+                game.advance(currentPlayer->getSymbol(), location);
             } catch(std::string& e) {
                 std::cout << e << std::endl;
                 return;
@@ -257,8 +256,6 @@ void battleOfTheBots(int iterations = 1000) {
 }
 
 int main() {
-
-    battleOfTheBots();
-
+    battleOfTheBots(100);
     return 0;
 }
