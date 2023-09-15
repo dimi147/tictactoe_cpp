@@ -1,43 +1,35 @@
-#include <iostream>
-#include <vector>
-#include <array>
-#include <utility>
-#include <string>
-#include <chrono>
-
 // Uncomment to print timings of the bot's lookup
-//#define TIMECODE
+// #define TIMECODE
 
-using namespace std::string_literals;
+#include <array>
+#ifdef TIMECODE
+#include <chrono>
+#endif
+#include <iostream>
+#include <string>
+#include <utility>
+#include <vector>
 
-class Game {
+class Game final {
 public:
-    static constexpr char SYMBOLS[] = {'X','O'};
-    static constexpr char EMPTY_CHARACTER = ' ';
+    Game() { reset(); }
+    Game(const Game&) = default;
+    Game(Game&&) = delete;
+    ~Game() = default;
 
-    Game() {
-        board.fill({EMPTY_CHARACTER, EMPTY_CHARACTER, EMPTY_CHARACTER});
-    }
+    Game& operator=(const Game&) = delete;
+    Game& operator=(Game&&) = delete;
 
-    auto isOver() const -> bool {
-        return (hasWinner().first || boardIsComplete());
-    }
+    auto isOver() const -> bool { return (hasWinner().first || boardIsComplete()); }
 
-    auto isTie() const -> bool {
-        return (boardIsComplete() && !hasWinner().first);
-    }
+    auto isTie() const -> bool { return (boardIsComplete() && !hasWinner().first); }
 
     auto hasWinner() const -> std::pair<bool, char> {
-        return hasWinner(board);                       
-    } 
-
-    static auto hasWinner(const std::array<std::array<char, 3>, 3>& board) -> std::pair<bool, char> {
-    
         auto isLineCompleted = [](char a, char b, char c) -> bool {
             return (a == b && b == c && a != EMPTY_CHARACTER);
         };
-        
-        if (isLineCompleted(board[0][0], board[0][1], board[0][2])) 
+
+        if (isLineCompleted(board[0][0], board[0][1], board[0][2]))
             return {true, board[0][0]};
         else if (isLineCompleted(board[1][0], board[1][1], board[1][2]))
             return {true, board[1][0]};
@@ -53,27 +45,19 @@ public:
             return {true, board[0][0]};
         else if (isLineCompleted(board[2][0], board[1][1], board[0][2]))
             return {true, board[2][0]};
-        return {false, ' '};                        
+        return {false, ' '};
     }
 
-    auto advance(const char& symbol, const std::pair<int, int>& location) -> void {
-        const auto& [row, col] = location;
+    auto advance(int row, int col) -> void {
+        if (isOver())
+            throw std::exception("Game is already over");
         if (row < 0 || row > 2 || col < 0 || col > 2)
-            throw "Location is out of bounds"s;
+            throw std::exception("Location is out of bounds");
         if (board[row][col] != EMPTY_CHARACTER)
-            throw "Location already marked"s;
-        if (symbol == *previousSymbol)
-            throw "Wrong player turn"s;
-        if (symbol == SYMBOLS[0])
-            previousSymbol = &SYMBOLS[0];
-        else if(symbol == SYMBOLS[1])
-            previousSymbol = &SYMBOLS[1];
-        else 
-            throw "Unexpected player symbol"s;
-        board[row][col] = symbol;
+            throw std::exception("Location already marked");
+        board[row][col] = m_symbols[0];
+        std::swap(m_symbols[0], m_symbols[1]);
     }
-
-    auto getBoard() const -> const std::array<std::array<char, 3>, 3>& { return board; } 
 
     auto printBoard() const -> void {
         std::cout << std::endl << "   0  1  2" << std::endl;
@@ -84,19 +68,16 @@ public:
             }
             std::cout << std::endl;
         }
-        std::cout << std::endl;        
+        std::cout << std::endl;
     }
 
-    auto getSymbolForNewPlayer() -> const char* {
-        if (numberOfPlayers > 1) 
-            throw "Too many players in game"s;
-        return &SYMBOLS[numberOfPlayers++];
-    }
+    bool isEmpty(int r, int c) const { return board[r][c] == EMPTY_CHARACTER; }
+    void reset() { board.fill({EMPTY_CHARACTER, EMPTY_CHARACTER, EMPTY_CHARACTER}); }
 
 private:
-    size_t numberOfPlayers = 0;
+    std::array<char, 2> m_symbols = {'X', 'O'};
+    static constexpr char EMPTY_CHARACTER = ' ';
     std::array<std::array<char, 3>, 3> board;
-    const char* previousSymbol = &EMPTY_CHARACTER;
 
     auto boardIsComplete() const -> bool {
         for (auto row = 0; row < 3; row++) {
@@ -111,67 +92,58 @@ private:
 
 class Player {
 public:
-    Player(Game& game) : symbol {game.getSymbolForNewPlayer()}
-    {}
+    Player() = default;
+    virtual ~Player() = default;
 
-    virtual auto getTargetLocation(const Game& game) -> std::pair<int, int> {
+    virtual auto play(Game& game) -> void {
+        if (game.isOver())
+            throw std::exception("Game is already over");
         game.printBoard();
         auto targetRow = -1;
         auto targetCol = -1;
         std::cout << "input location: ";
         std::cin >> targetRow >> targetCol;
-        return {targetRow, targetCol};  
-    } 
-
-    auto getSymbol() const -> char { return (*symbol);  }
-
-private:
-    const char* const symbol; 
+        game.advance(targetRow, targetCol);
+    }
 };
 
 class Bot : public Player {
 public:
-    Bot(Game& game) 
-        : Player(game),
-          enemySymbol{Game::SYMBOLS[0] == getSymbol() ? &Game::SYMBOLS[1] : &Game::SYMBOLS[0]} {
-    }
+    Bot() = default;
+    virtual ~Bot() = default;
 
-    auto getTargetLocation(const Game& game) -> std::pair<int, int>  override {
+    auto play(Game& game) -> void override {
+        if (game.isOver())
+            throw std::exception("Game is already over");
+
 #ifdef TIMECODE
         auto start = std::chrono::steady_clock::now();
 #endif
-        const auto& board = game.getBoard();
-        auto possibleMoves = getPossibleMoves(board);
+        // Optional optimization to preselect the first move of the bot as it's the simplest
+        // but most expensive to calculate
+        auto moves = getPossibleMoves(game);
+        if (moves.size() >= 8) {
+            game.isEmpty(1, 1) ? game.advance(1, 1) : game.advance(0, 0);
+            return;
+        }
 
-        // Optional optimization to preselect the first move of the bot as it's the simplest but most expensive to calculate
-        // if (possibleMoves.size() == 9)
-        //     return {0, 0};
-        // else if (possibleMoves.size() == 8)
-        //     return ((board[1][1] != Game::EMPTY_CHARACTER) ? std::pair<int, int>{0, 0} : std::pair<int, int>{1, 1});
+        auto result = minimax(game, true);
 
-        auto result = minimax(board, true);
-#ifdef TIMECODE        
+#ifdef TIMECODE
         auto end = std::chrono::steady_clock::now();
-        std::cout << "Bot looked for " 
-                    << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() 
-                    << " milliseconds\n";
+        std::cout << "Bot looked for " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
+                  << " milliseconds\n";
 #endif
-        return {result[1], result[2]};
+        game.advance(result[1], result[2]);
     }
 
 private:
-    const char* const enemySymbol;
-
-    auto getEnemySymbol() -> const char& {
-        return (*enemySymbol);
-    }
-
-    auto minimax(const std::array<std::array<char, 3>, 3>& board, bool isFriendly, int depth = 0) -> std::array<int, 3> {
-        auto moves = getPossibleMoves(board);
+    auto minimax(const Game& game, bool isFriendly, int depth = 0) -> std::array<int, 3> {
+        auto moves = getPossibleMoves(game);
         auto results = std::vector<int>(moves.size(), 0);
 
-        if (moves.size() == 0)
-            return {0, -1, -1};
+        // if (moves.size() == 0)
+        //     return {0, -1, -1};
 
         auto max = std::numeric_limits<int>::min();
         auto min = std::numeric_limits<int>::max();
@@ -179,14 +151,16 @@ private:
         auto minIndex = 0;
 
         for (auto i = 0; i < moves.size(); ++i) {
-            auto futureBoard = board;
+            auto futureGame{game};
             auto& move = moves[i];
-            futureBoard[move.first][move.second] = (isFriendly ? getSymbol() : getEnemySymbol());
-            auto [isGameOver, winner] = Game::hasWinner(futureBoard);
-            if (isGameOver)
-                results[i] += (isFriendly ? 10 - depth : -10 + depth);
-            else 
-                results[i] += minimax(futureBoard, !isFriendly, depth + 1)[0];
+            futureGame.advance(move.first, move.second);
+            auto [hasWinner, winner] = futureGame.hasWinner();
+            if (hasWinner)
+                results[i] = (isFriendly ? 10 - depth : -10 + depth);
+            else if (moves.size() == 1)  // is a tie
+                results[i] = 0;
+            else
+                results[i] = minimax(futureGame, !isFriendly, depth + 1)[0];
 
             if (results[i] > max) {
                 max = results[i];
@@ -201,73 +175,80 @@ private:
 
         if (isFriendly)
             return {results[maxIndex], moves[maxIndex].first, moves[maxIndex].second};
-        else 
-            return{results[minIndex], moves[minIndex].first, moves[minIndex].second};
+        else
+            return {results[minIndex], moves[minIndex].first, moves[minIndex].second};
     }
 
-    auto getPossibleMoves(const std::array<std::array<char, 3>, 3>& board) -> std::vector<std::pair<int, int>> {
+protected:
+    auto getPossibleMoves(const Game& game) -> std::vector<std::pair<int, int>> {
         auto moves = std::vector<std::pair<int, int>>{};
         for (auto row = 0; row < 3; row++) {
             for (auto col = 0; col < 3; ++col) {
-                if (board[row][col] == Game::EMPTY_CHARACTER)
+                if (game.isEmpty(row, col))
                     moves.push_back({row, col});
             }
         }
         return moves;
     }
-
 };
 
-void playAgainstBot(bool humanPlaysFirst = true) {
+// #include <time.h>
 
+// #include <cstdlib>
+
+// class RandomBot final : public Bot {
+// public:
+//     RandomBot() : Bot() { srand(reinterpret_cast<unsigned>(this) + time(nullptr)); }
+//     void play(Game& game) override {
+//         auto moves = getPossibleMoves(game);
+//         auto& move = moves[rand() % moves.size()];
+//         game.advance(move.first, move.second);
+//     }
+// };
+
+void playAgainstBot(bool humanPlaysFirst = true) {
     try {
         Game game;
-        Player human(game);
-        Bot bot(game); 
+        Player human;
+        Bot bot;
 
-        Player* currentPlayer = (humanPlaysFirst ? &human : &bot);
-        Player* otherPlayer = (humanPlaysFirst ? &bot : &human);
+        std::array<Player*, 2> turn{humanPlaysFirst ? &human : &bot, humanPlaysFirst ? &bot : &human};
 
-        while(!game.isOver()) {
-            auto location = currentPlayer->getTargetLocation(game);            
-            game.advance(currentPlayer->getSymbol(), location);
-            std::swap(currentPlayer, otherPlayer);
+        while (!game.isOver()) {
+            turn[0]->play(game);
+            std::swap(turn[0], turn[1]);
         }
 
         game.printBoard();
         auto [hasWinner, winner] = game.hasWinner();
         if (hasWinner)
             std::cout << winner << " wins!" << std::endl;
-        else 
+        else
             std::cout << "Tie!" << std::endl;
-            
-    } catch(std::string& e) {
-        std::cout << e << std::endl;
+
+    } catch (std::exception& e) {
+        std::cout << e.what() << std::endl;
         return;
     }
-    
 }
 
 void battleOfTheBots(int iterations = 100) {
-
     auto ties = 0;
+    Bot bot1;
+    Bot bot2;
     for (auto i = 0; i < iterations; ++i) {
         Game game;
-        Bot bot1(game);
-        Bot bot2(game); 
 
-        Player* currentPlayer = &bot1;
-        Player* otherPlayer = &bot2;
+        std::array<Player*, 2> turn = {&bot1, &bot2};
 
-        while(!game.isOver()) {
-            auto location = currentPlayer->getTargetLocation(game);            
+        while (!game.isOver()) {
             try {
-                game.advance(currentPlayer->getSymbol(), location);
-            } catch(std::string& e) {
-                std::cout << e << std::endl;
+                turn[0]->play(game);
+            } catch (std::exception& e) {
+                std::cout << e.what() << std::endl;
                 return;
             }
-            std::swap(currentPlayer, otherPlayer);
+            std::swap(turn[0], turn[1]);
         }
 
         if (game.isTie())
@@ -278,7 +259,7 @@ void battleOfTheBots(int iterations = 100) {
 }
 
 int main() {
-    playAgainstBot(false);
-    //battleOfTheBots();
+    // playAgainstBot();
+    battleOfTheBots();
     return 0;
 }
