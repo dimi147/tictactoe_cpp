@@ -1,6 +1,8 @@
 // Uncomment to print timings of the bot's lookup
 // #define TIMECODE
 
+// #define OPTIMIZE_FIRST_MOVE
+
 #include <array>
 #ifdef TIMECODE
 #include <chrono>
@@ -71,6 +73,8 @@ public:
         std::cout << std::endl;
     }
 
+    bool isFriend(int r, int c) const { return board[r][c] == m_symbols[0]; }
+    bool isFoe(int r, int c) const { return board[r][c] == m_symbols[1]; }
     bool isEmpty(int r, int c) const { return board[r][c] == EMPTY_CHARACTER; }
     void reset() { board.fill({EMPTY_CHARACTER, EMPTY_CHARACTER, EMPTY_CHARACTER}); }
 
@@ -119,16 +123,18 @@ public:
 #ifdef TIMECODE
         auto start = std::chrono::steady_clock::now();
 #endif
+        auto moves = getPossibleMoves(game);
+
+#ifdef OPTIMIZE_FIRST_MOVE
         // Optional optimization to preselect the first move of the bot as it's the simplest
         // but most expensive to calculate
-        auto moves = getPossibleMoves(game);
         if (moves.size() >= 8) {
             game.isEmpty(1, 1) ? game.advance(1, 1) : game.advance(0, 0);
             return;
         }
+#endif
 
-        auto result = minimax(game, true);
-
+        auto result = minimax(game, moves, true);
 #ifdef TIMECODE
         auto end = std::chrono::steady_clock::now();
         std::cout << "Bot looked for " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
@@ -138,45 +144,39 @@ public:
     }
 
 private:
-    auto minimax(const Game& game, bool isFriendly, int depth = 0) -> std::array<int, 3> {
-        auto moves = getPossibleMoves(game);
+    auto minimax(const Game& game, std::vector<std::pair<int, int>>& moves, bool isFriendly, int depth = 0)
+        -> std::array<int, 3> {
         auto results = std::vector<int>(moves.size(), 0);
 
-        // if (moves.size() == 0)
-        //     return {0, -1, -1};
-
-        auto max = std::numeric_limits<int>::min();
-        auto min = std::numeric_limits<int>::max();
-        auto maxIndex = 0;
-        auto minIndex = 0;
+        auto max = std::pair<int, int>{std::numeric_limits<int>::min(), -1};
+        auto min = std::pair<int, int>{std::numeric_limits<int>::max(), -1};
 
         for (auto i = 0; i < moves.size(); ++i) {
             auto futureGame{game};
-            auto& move = moves[i];
+            const auto move = moves[i];
             futureGame.advance(move.first, move.second);
             auto [hasWinner, winner] = futureGame.hasWinner();
             if (hasWinner)
                 results[i] = (isFriendly ? 10 - depth : -10 + depth);
             else if (moves.size() == 1)  // is a tie
                 results[i] = 0;
-            else
-                results[i] = minimax(futureGame, !isFriendly, depth + 1)[0];
-
-            if (results[i] > max) {
-                max = results[i];
-                maxIndex = i;
+            else {
+                moves.erase(moves.begin() + i);
+                results[i] = minimax(futureGame, moves, !isFriendly, depth + 1)[0];
+                moves.insert(moves.begin() + i, move);
             }
 
-            if (results[i] < min) {
-                min = results[i];
-                minIndex = i;
-            }
+            if (results[i] > max.first)
+                max = {results[i], i};
+
+            if (results[i] < min.first)
+                min = {results[i], i};
         }
 
         if (isFriendly)
-            return {results[maxIndex], moves[maxIndex].first, moves[maxIndex].second};
+            return {results[max.second], moves[max.second].first, moves[max.second].second};
         else
-            return {results[minIndex], moves[minIndex].first, moves[minIndex].second};
+            return {results[min.second], moves[min.second].first, moves[min.second].second};
     }
 
 protected:
