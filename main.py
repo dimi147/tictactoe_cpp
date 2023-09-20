@@ -68,14 +68,14 @@ class Renderer():
         pygame.init()
         self.font = pygame.font.Font(pygame.font.get_default_font(), 70)
         self.window = pygame.display.set_mode((Renderer.WIDTH, Renderer.HEIGHT))
-        Renderer.x_image = pygame.font.Font(pygame.font.get_default_font(), Renderer.HEIGHT // 3 - 10).render('X', True, (113,112,110))
-        Renderer.o_image = pygame.font.Font(pygame.font.get_default_font(), Renderer.HEIGHT // 3 - 10).render('O', True, (123,112,110))
+        Renderer.x_image = pygame.font.Font(pygame.font.get_default_font(), Renderer.HEIGHT // 3 - 10).render('X', True, (100, 100, 100))
+        Renderer.o_image = pygame.font.Font(pygame.font.get_default_font(), Renderer.HEIGHT // 3 - 10).render('O', True, (100, 100, 100))
         Renderer.x_image = pygame.transform.scale(Renderer.x_image, (Renderer.WIDTH // 3 - 10, Renderer.x_image.get_size()[1]))
         Renderer.o_image = pygame.transform.scale(Renderer.o_image, (Renderer.WIDTH // 3 - 10, Renderer.o_image.get_size()[1]))
         self.background_image = pygame.transform.scale(pygame.image.load('wood.jpg'), (Renderer.WIDTH, Renderer.HEIGHT))
-        self.silver_texture = pygame.transform.scale(pygame.image.load('silver.jpg'), (Renderer.WIDTH // 3 - 10, Renderer.HEIGHT // 3 - 10))
-        Renderer.x_image.blit(self.silver_texture, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
-        Renderer.o_image.blit(self.silver_texture, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        black_texture = pygame.transform.scale(pygame.image.load('black.jpg'), (Renderer.WIDTH // 3 - 10, Renderer.HEIGHT // 3 - 10))
+        Renderer.x_image.blit(black_texture, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        Renderer.o_image.blit(black_texture, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
         self.draw_grid()    
 
     def getLocation(self):
@@ -84,8 +84,6 @@ class Renderer():
         return r, c
 
     def mark(self, symbol, r, c):
-            # cx = c * (Renderer.WIDTH // 3) + 5
-            # cy = r * (Renderer.HEIGHT // 3) + 5
             rect = Renderer.x_image.get_rect() if symbol == 'X' else Renderer.o_image.get_rect()
             rect.center = (c * (Renderer.WIDTH // 3) + Renderer.WIDTH // 6, r * (Renderer.HEIGHT // 3) + Renderer.HEIGHT // 6)
             self.window.blit(Renderer.x_image if symbol == 'X' else Renderer.o_image , rect)
